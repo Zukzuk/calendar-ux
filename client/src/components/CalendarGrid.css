@@ -1,0 +1,55 @@
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: #eaeaea;
+}
+
+.react-calendar__navigation button[disabled] {
+  background-color: #eaeaea;
+}
+
+abbr[title] {
+  text-decoration: none;
+}
+
+/* Calendar tile styles */
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  background: #eaeaea;
+  border-radius: 6px;
+}
+
+/* Unselected dates */
+.react-calendar__tile {
+  background: transparent; /* Transparent for unselected dates */
+  color: #222; /* Font color remains unchanged (black) */
+}
+
+/* Selected date with dynamic inline style */
+.react-calendar__tile--active {
+  border-radius: 6px;
+  font-weight: bold;
+  color: #222; /* Font color remains black */
+}
+
+/* Highlight current date (today) */
+.react-calendar__tile--now {
+  background: #eaeaea; /* Subtle gray for today */
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.react-calendar__tile--now:enabled:hover,
+.react-calendar__tile--now:enabled:focus {
+  background: #eaeaea; /* Same as hover */
+  color: #222; /* Font color remains black */
+}
+
+/* Weekends inherit default text color */
+.react-calendar__month-view__days__day--weekend {
+  color: inherit;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  opacity: 0; /* Makes the tiles visually transparent */
+  pointer-events: none; /* Disables clicking or hovering */
+}

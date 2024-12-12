@@ -1,0 +1,21 @@
+/* App.css */
+.app-container {
+    padding : 30px;
+}
+
+.reset-button {
+    background: #ccc; /* Default grey background */
+    color: white;
+    border: none;
+    padding: 5px 10px; /* Smaller padding */
+    margin-bottom: 10px;
+    cursor: pointer;
+    border-radius: 3px; /* Slightly rounded corners */
+    font-size: 12px; /* Smaller font size */
+    transition: background 0.3s ease; /* Smooth transition for hover */
+}
+
+.reset-button:hover {
+    background: red; /* Red background on hover */
+    color: white; /* Ensure white text on red hover */
+}

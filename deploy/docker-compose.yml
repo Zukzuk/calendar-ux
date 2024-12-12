@@ -1,0 +1,12 @@
+services:
+  calendar-ux-app:
+    image: zukzuk/calendar-ux
+    ports:
+      - "3002:5000"
+    restart: always
+    networks:
+      - calendar-ux
+
+networks:
+  calendar-ux:
+    driver: bridge
