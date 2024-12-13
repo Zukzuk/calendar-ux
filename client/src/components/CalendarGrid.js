@@ -3,20 +3,31 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "./CalendarGrid.css";
 
-const CalendarGrid = ({ handleDateClick, selectedDates }) => {
+const CalendarGrid = ({ handleDateClick, selectedDates, pendingDates }) => {
     const getTileStyle = (date) => {
-        // Get style for date tiles
         const dateString = date.toDateString();
+
         if (selectedDates[dateString]) {
             return {
                 backgroundColor: selectedDates[dateString].color,
                 color: "white",
-                width: "100%",
-                height: "100%",
-                display: "block",
+                pointer: "default",
             };
         }
-        return {};
+
+        if (pendingDates.has(dateString)) {
+            return {
+                backgroundColor: "yellow",
+                color: "black",
+                pointer: "not-allowed",
+            };
+        }
+
+        return {
+            backgroundColor: "transparent",
+            color: "white",
+            pointer: "default",
+        };
     };
 
     const generateCalendarData = () => {
@@ -45,9 +56,14 @@ const CalendarGrid = ({ handleDateClick, selectedDates }) => {
                         view="month"
                         activeStartDate={new Date(year, month, 1)}
                         tileContent={({ date, view }) =>
-                            view === "month" ? <span style={{ ...getTileStyle(date) }}></span> : null
+                            <span style={{ ...getTileStyle(date) }}></span>
                         }
-                        onClickDay={handleDateClick}
+                        onClickDay={(date) => {
+                            const dateString = date.toDateString();
+                            if (!pendingDates.has(dateString)) {
+                                handleDateClick(date); // Only handle clicks for non-pending dates
+                            }
+                        }}
                         showNavigation={false}
                     />
                 </div>

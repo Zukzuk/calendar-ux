@@ -7,9 +7,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Global state
 let connectedUsers = {}; // Store connected users as { socketId: { name, color } }
-let selectedDatesByTrain = {}; // { train: { date: { user, color } } }
 let userTrainMap = {}; // { socketId: trainName }
+let selectedDatesByTrain = {}; // { train: { date: { user, color } } }
 
 // Serve React static files
 const clientBuildPath = path.join(__dirname, "client/build");
@@ -31,7 +32,7 @@ io.on("connection", (socket) => {
         io.emit("update-users", Object.values(connectedUsers));
     });
 
-    socket.on("reset-name", (name) => {
+    socket.on("reset-name", () => {
         console.log("User logged out:", socket.id, connectedUsers[socket.id].name);
         delete connectedUsers[socket.id].name;
         io.emit("update-users", Object.values(connectedUsers));
@@ -40,17 +41,42 @@ io.on("connection", (socket) => {
     socket.on("toggle-date", ({ date, train }) => {
         if (!selectedDatesByTrain[train]) selectedDatesByTrain[train] = {};
 
-        if (selectedDatesByTrain[train][date]) {
-            delete selectedDatesByTrain[train][date];
-        } else {
-            selectedDatesByTrain[train][date] = {
-                user: connectedUsers[socket.id].name,
-                color: connectedUsers[socket.id].color,
-            };
-        }
-        // Broadcast only to users viewing the same train
-        io.to(train).emit("update-dates", selectedDatesByTrain[train]);
+        setTimeout(() => {
+            // Check for conflicts
+            let conflict = false;
+
+            for (const [otherTrain, dates] of Object.entries(selectedDatesByTrain)) {
+                if (otherTrain !== train && dates[date]) {
+                    // Conflict: Date is already selected by another train
+                    conflict = true;
+                    socket.emit("date-error", {
+                        date,
+
+                        message: `Already planned for '${otherTrain}'`,
+                    });
+                    break;
+                }
+            }
+
+            // If no conflict, toggle the date
+            if (!conflict) {
+                if (selectedDatesByTrain[train][date]) {
+                    // Unselect the date
+                    delete selectedDatesByTrain[train][date];
+                } else {
+                    // Select the date
+                    selectedDatesByTrain[train][date] = {
+                        user: connectedUsers[socket.id].name,
+                        color: connectedUsers[socket.id].color,
+                    };
+                }
+
+                // Broadcast the updated state
+                io.to(train).emit("update-dates", selectedDatesByTrain[train]);
+            }
+        }, Math.random()*3000); // Simulate a delay to mimic real-world validation
     });
+
 
     socket.on("reset-dates", () => {
         // Reset selectedDatesByTrain for the current train

@@ -2,18 +2,18 @@ import React, { useEffect, useState } from "react";
 import io from "socket.io-client";
 import Cookies from "js-cookie";
 import NameInput from "./components/NameInput";
+import ActiveTrainUsers from "./components/ActiveTrainUsers";
 import TrainSelector from "./components/TrainSelector";
 import CalendarGrid from "./components/CalendarGrid";
 import Title from "./components/Title";
 import "./App.css";
-import ActiveTrainUsers from "./components/ActiveTrainUsers";
 
 const socket = io();
-
 const trains = ["Train A", "Train B", "Train C"]; // List of trains
 
 function App() {
     const [selectedDates, setSelectedDates] = useState({}); // Selected dates with user info
+    const [pendingDates, setPendingDates] = useState(new Set()); // Pending dates
     const [connectedUsers, setConnectedUsers] = useState([]); // List of connected users
     const [userTrainMap, setUserTrainMap] = useState({}); // Map of users to their trains
     const [name, setName] = useState(""); // User's name input
@@ -24,8 +24,8 @@ function App() {
         // Check for cached name in cookies
         const cachedName = Cookies.get("username");
         if (cachedName) {
-            setName(cachedName);
-            setHasSubmittedName(true);
+            setName(cachedName); // Set name from cookie
+            setHasSubmittedName(true); // Mark as submitted
             socket.emit("set-name", cachedName); // Send name to server
         }
     }, []);
@@ -51,11 +51,39 @@ function App() {
         socket.emit("switch-train", activeTrain); // Request data for the active train
     }, [activeTrain]);
 
+    useEffect(() => {
+        // Listen for updates to dates
+        socket.on("update-dates", (updatedDates) => {
+            setPendingDates((prev) => {
+                const updatedPending = new Set(prev);
+                // Remove all resolved dates from the pending state
+                Object.keys(updatedDates).forEach((date) => updatedPending.delete(date));
+                return updatedPending;
+            });
+            setSelectedDates(updatedDates); // Update the selected dates state
+        });
+        // Handle errors for conflicting dates
+        socket.on("date-error", ({ date, message }) => {
+            // Remove the pending state for the conflicting date
+            console.log(date, '->', message);
+            setPendingDates((prev) => {
+                const updated = new Set(prev);
+                updated.delete(date);
+                return updated;
+            });
+        });
+        return () => {
+            socket.off("update-dates");
+            socket.off("date-error");
+        };
+    }, []);
+
     const handleDateClick = (date) => {
-        // Toggle date selection
         const dateString = date.toDateString();
-        socket.emit("toggle-date", { date: dateString, train: activeTrain }); // Pass active train
+        setPendingDates((prev) => new Set([...prev, dateString])); // Add to pending dates
+        socket.emit("toggle-date", { date: dateString, train: activeTrain }); // Emit the toggle-date command to the server
     };
+
 
     const handleNameSubmit = () => {
         // Submit name to server
@@ -99,7 +127,11 @@ function App() {
                         handleResetName={handleResetName}
                         handleResetDates={handleResetDates}
                     />
-                    <CalendarGrid handleDateClick={handleDateClick} selectedDates={selectedDates} />
+                    <CalendarGrid
+                        handleDateClick={handleDateClick}
+                        selectedDates={selectedDates}
+                        pendingDates={pendingDates}
+                    />
                 </>
             )}
         </div>
