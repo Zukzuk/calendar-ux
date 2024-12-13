@@ -13,7 +13,7 @@ const trains = ["Train A", "Train B", "Train C"]; // List of trains
 
 function App() {
     const [selectedDates, setSelectedDates] = useState({}); // Selected dates with user info
-    const [pendingDates, setPendingDates] = useState(new Set()); // Pending dates
+    const [pendingDates, setPendingDates] = useState({}); // Pending dates by train
     const [connectedUsers, setConnectedUsers] = useState([]); // List of connected users
     const [userTrainMap, setUserTrainMap] = useState({}); // Map of users to their trains
     const [name, setName] = useState(""); // User's name input
@@ -55,35 +55,66 @@ function App() {
         // Listen for updates to dates
         socket.on("update-dates", (updatedDates) => {
             setPendingDates((prev) => {
-                const updatedPending = new Set(prev);
-                // Remove all resolved dates from the pending state
-                Object.keys(updatedDates).forEach((date) => updatedPending.delete(date));
+                const updatedPending = { ...prev };
+
+                // Remove all resolved dates for the current train
+                const currentPending = new Set(prev[activeTrain] || []);
+                Object.keys(updatedDates).forEach((date) => currentPending.delete(date));
+
+                // Ensure dates not present in the server response are also cleared
+                Array.from(currentPending).forEach((pendingDate) => {
+                    if (!updatedDates[pendingDate]) {
+                        currentPending.delete(pendingDate);
+                    }
+                });
+
+                updatedPending[activeTrain] = currentPending;
                 return updatedPending;
             });
-            setSelectedDates(updatedDates); // Update the selected dates state
+
+            // Fully rely on the server response to update selected dates
+            setSelectedDates(updatedDates);
         });
+
         // Handle errors for conflicting dates
         socket.on("date-error", ({ date, message }) => {
-            // Remove the pending state for the conflicting date
-            console.log(date, '->', message);
+            console.log("date-error::", date, '->', message);
+
             setPendingDates((prev) => {
-                const updated = new Set(prev);
-                updated.delete(date);
-                return updated;
+                const updatedPending = { ...prev };
+                const currentPending = new Set(prev[activeTrain] || []);
+                currentPending.delete(date);
+                updatedPending[activeTrain] = currentPending;
+                return updatedPending;
             });
         });
+
         return () => {
             socket.off("update-dates");
             socket.off("date-error");
         };
-    }, []);
+    }, [activeTrain]);
+
 
     const handleDateClick = (date) => {
         const dateString = date.toDateString();
-        setPendingDates((prev) => new Set([...prev, dateString])); // Add to pending dates
-        socket.emit("toggle-date", { date: dateString, train: activeTrain }); // Emit the toggle-date command to the server
-    };
 
+        // Add to pending dates for the current train
+        setPendingDates((prev) => ({
+            ...prev,
+            [activeTrain]: new Set([...(prev[activeTrain] || []), dateString]),
+        }));
+
+        // Optimistically remove the date from selectedDates
+        setSelectedDates((prev) => {
+            const updated = { ...prev };
+            delete updated[dateString];
+            return updated;
+        });
+
+        // Emit the toggle-date command to the server
+        socket.emit("toggle-date", { date: dateString, train: activeTrain });
+    };
 
     const handleNameSubmit = () => {
         // Submit name to server
@@ -130,7 +161,7 @@ function App() {
                     <CalendarGrid
                         handleDateClick={handleDateClick}
                         selectedDates={selectedDates}
-                        pendingDates={pendingDates}
+                        pendingDates={pendingDates[activeTrain] || new Set()} // Only pass pending dates for the active train
                     />
                 </>
             )}
